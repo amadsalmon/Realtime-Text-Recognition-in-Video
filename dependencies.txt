@@ -1,0 +1,25 @@
+opencv-python => pip install opencv-python
+tesseract engine => https://tesseract-ocr.github.io/tessdoc/Installation.html
+pytesseract (python wrapper for tesseract) => pip install tesseract
+
+########################################################################################
+
+
+
+
+
+Use opencv to break video into frames.
+
+Process frames to make text more readable using opencv
+
+Read out text and output it into terminal (pretty) using pytesseract
+
+For each frame add box surrounding text  => process frames, to find position for the boxes (the same on the original frame)
+
+Combine frames into video using opencv
+
+(use matplotlib inside a virtenv)
+(Install tesseract with yay and download wrapper for python pytesseract)
+
+
+
