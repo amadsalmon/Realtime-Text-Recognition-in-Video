@@ -9,7 +9,8 @@ import os
 #Process frames to make text more readable using opencv
 #Read out text and output it into terminal (pretty) using pytesseract
 #For each frame add box surrounding text  => pending process frames (step2), to find position for the boxes (the same on the #original frame)
-#Combine frames into video using opencv => Fix jerkyness
+#Combine frames into video using opencv => Fix jerkynes
+
 
 # get grayscale image
 def get_grayscale(image):
@@ -61,6 +62,7 @@ def match_template(image, template):
     return cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED) 
 
 
+########## EXTRACT FRAMES AND FIND WORDS #############
 if not os.path.exists('ocr1_frames'):
     os.makedirs('ocr1_frames')
 
@@ -92,6 +94,8 @@ video.release()
 image_folder='ocr1_frames'
 
 images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
+#Duplicate elements of the list to increase the frame count
+images = list(np.repeat(images, 3))
 frame = cv2.imread(os.path.join(image_folder, images[0]))
 height, width, layers = frame.shape
 
