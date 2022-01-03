@@ -65,10 +65,9 @@ class CV2_HELPER:
 
 ################################## OCR PROCESSING ########################
 class OCR_HANDLER:
-    def __init__(self,video,fps,cv2_helper):
+    def __init__(self,video,cv2_helper):
         #The video's name with extension
         self.video=video
-        self.fps=fps
         self.cv2_helper=cv2_helper
         self.video_without_ext = self.video.split(".")[0]
         self.frames_folder = self.video_without_ext + '_frames'
@@ -78,45 +77,58 @@ class OCR_HANDLER:
     def process_frames(self):
                 
         frame_name = './' + self.frames_folder + '/' + self.video_without_ext + '_frame_'
-        video = cv2.VideoCapture(self.video)   #Missing error code for when the video cannot be oppened
-        idx = 0
-        
+
         if not os.path.exists(self.frames_folder):
             os.makedirs(self.frames_folder)
 
-        while video.isOpened():
-            retval,frame = video.read()
-            if not retval: #Last frame
+        video = cv2.VideoCapture(self.video)        #Missing error code for when the video cannot be oppened
+        self.fps = round(video.get(cv2.CAP_PROP_FPS))  # get the FPS of the video
+
+        print("SAVING VIDEO AT",self.fps,"FPS")
+
+        # get the list of duration spots to save
+        saving_frames_durations = self.get_saving_frames_durations(video, self.fps) 
+
+        idx = 0
+        while True:
+            is_read, frame = video.read()
+            if not is_read:# break out of the loop if there are no frames to read
                 break
 
-            output_name = frame_name + str(idx) + '.png'
+            frame_duration = idx / self.fps
+            try:
+                # get the earliest duration to save
+                closest_duration = saving_frames_durations[0]
+            except IndexError:
+                # the list is empty, all duration frames were saved
+                break
+            if frame_duration >= closest_duration:
+                # if closest duration is less than or equals the frame duration, 
+                # then save the frame
 
-            #Pre-process the frame TODO play with these...
-            gray = self.cv2_helper.get_grayscale(frame) 
-            thresh = self.cv2_helper.thresholding(gray)
+                output_name = frame_name + str(idx) + '.png'
+                #frame=self.ocr_frame(frame)
+                cv2.imwrite(output_name,frame)
+                if idx % 10 == 0:
+                    print ("Saving frame: ..."+output_name)
+                # drop the duration spot from the list, since this duration spot is already saved
+                try:
+                    saving_frames_durations.pop(0)
+                except IndexError:
+                    pass
+            # increment the frame count
+            idx += 1
 
-            d = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
-
-            n_boxes = len(d['text'])
-            for i in range(n_boxes):
-                if int(d['conf'][i]) > 60:
-                    (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
-                    frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-            cv2.imwrite(output_name,frame)
-            if idx % 10 == 0:
-                print ("Saving frame: ..."+output_name)
-
-            idx +=1
-
+        print("Saved and processed",idx,"frames")
         video.release()
 
     def assemble_video(self):
 
-        images = [img for img in os.listdir(self.frames_folder) if img.endswith(".png")]
+        images = [img for img in os.listdir(self.frames_folder) if img.endswith(".png")] #Carefull with the order
+
+        images = sorted(images, key=lambda x: float((x.split("_")[2])[:-4]))
 
         #Duplicate elements of the list to increase the frame count
-        images = list(np.repeat(images, 4))
         frame = cv2.imread(os.path.join(self.frames_folder, images[0]))
         height, width, layers = frame.shape
 
@@ -126,11 +138,34 @@ class OCR_HANDLER:
             video.write(cv2.imread(os.path.join(self.frames_folder, image)))
 
         video.release()
+    
+    def get_saving_frames_durations(self,video, saving_fps):
+        """A function that returns the list of durations where to save the frames"""
+        s = []
+        # get the clip duration by dividing number of frames by the number of frames per second
+        clip_duration = video.get(cv2.CAP_PROP_FRAME_COUNT) / video.get(cv2.CAP_PROP_FPS)
+        # use np.arange() to make floating-point steps
+        for i in np.arange(0, clip_duration, 1 / saving_fps):
+            s.append(i)
+        return s
+    
+    def ocr_frame(self,frame):
+        #Pre-process the frame TODO play with these...
+        gray = self.cv2_helper.get_grayscale(frame) 
+        #thresh = self.cv2_helper.thresholding(gray)
+
+        d = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
+        n_boxes = len(d['text'])
+        for i in range(n_boxes):
+            if int(d['conf'][i]) > 60: #Confidence
+                (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
+                frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        return frame
 
 
 ####################### MAIN ##############
 
-ocr_handler = OCR_HANDLER('ocr1.mp4',240,CV2_HELPER())
+ocr_handler = OCR_HANDLER('ocr2.mp4',CV2_HELPER())
 
 ocr_handler.process_frames()
 ocr_handler.assemble_video()

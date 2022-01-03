@@ -141,3 +141,29 @@ video.release()
 #plot.show()
 
 
+#while video.isOpened():
+#            retval,frame = video.read()
+#            if not retval: #Last frame
+#                break
+#
+#            output_name = frame_name + str(idx) + '.png'
+#
+#            #Pre-process the frame TODO play with these...
+#            gray = self.cv2_helper.get_grayscale(frame) 
+#            thresh = self.cv2_helper.thresholding(gray)
+#
+#            d = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
+#
+#            n_boxes = len(d['text'])
+#            for i in range(n_boxes):
+#                if int(d['conf'][i]) > 60:
+#                    (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
+#                    frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+#
+#            cv2.imwrite(output_name,frame)
+#            if idx % 10 == 0:
+#                print ("Saving frame: ..."+output_name)
+#
+#            idx +=1
+
+
