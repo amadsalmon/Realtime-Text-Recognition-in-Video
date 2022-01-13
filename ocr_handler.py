@@ -7,38 +7,13 @@ import os
 
 ################################## CV2 FUNCTIONS ########################
 class CV2_HELPER:
-    # get grayscale image
-    def get_grayscale(self,image):
-        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # noise removal
-    def remove_noise(self,image):
-        return cv2.medianBlur(image,5)
-    
-    #thresholding
-    def thresholding(self,image):
-        return cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    #Returns a binary image using an adaptative threshold
+    def binarization_adaptative_threshold(self,image):
+        #11 => size of a pixel neighborhood that is used to calculate a threshold value for the pixel
+        return cv2.adaptiveThreshold(image,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
 
-    #dilation
-    def dilate(self,image):
-        kernel = np.ones((5,5),np.uint8)
-        return cv2.dilate(image, kernel, iterations = 1)
-
-    #erosion
-    def erode(self,image):
-        kernel = np.ones((5,5),np.uint8)
-        return cv2.erode(image, kernel, iterations = 1)
-
-    #opening - erosion followed by dilation
-    def opening(self,image):
-        kernel = np.ones((5,5),np.uint8)
-        return cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
-
-    #canny edge detection
-    def canny(self,image):
-        return cv2.Canny(image, 100, 200)
-
-    #skew correction
+    #skew correction to align image with horizontal
     def deskew(self,image):
         coords = np.column_stack(np.where(image > 0))
         angle = cv2.minAreaRect(coords)[-1]
@@ -51,6 +26,33 @@ class CV2_HELPER:
         M = cv2.getRotationMatrix2D(center, angle, 1.0)
         rotated = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
         return rotated
+    
+    #smoothen the image by removing small dots/patches which have high intensity than the rest of the image
+    def remove_noise(self,image):
+        return cv2.medianBlur(image,5)
+
+    # to make the width of strokes uniform, we have to perform Thinning and Skeletonization
+    def erode(self,image):
+        kernel = np.ones((5,5),np.uint8)
+        return cv2.erode(image, kernel, iterations = 1)
+
+    # get grayscale image
+    def get_grayscale(self,image):
+        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    #dilation
+    def dilate(self,image):
+        kernel = np.ones((5,5),np.uint8)
+        return cv2.dilate(image, kernel, iterations = 1)
+
+    #opening - erosion followed by dilation
+    def opening(self,image):
+        kernel = np.ones((5,5),np.uint8)
+        return cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
+
+    #canny edge detection
+    def canny(self,image):
+        return cv2.Canny(image, 100, 200)
 
     #template matching
     def match_template(self,image, template):
@@ -82,7 +84,9 @@ class OCR_HANDLER:
         print("SAVING VIDEO:",frame_count,"FRAMES AT",self.fps,"FPS")
 
         idx = 0
+        print(":",end='',flush=True)
         while True:
+            print("=",end='',flush=True)
             is_read, frame = video.read()
             if not is_read:# break out of the loop if there are no frames to read
                 break
@@ -97,10 +101,13 @@ class OCR_HANDLER:
                 # if closest duration is less than or equals the frame duration, 
                 # then save the frame
                 output_name = frame_name + str(idx) + '.png'
-                frame=self.ocr_frame(frame)
+                frame=self.ocr_frame(frame,preprocess=["binarization","remove_noise"])
                 cv2.imwrite(output_name,frame)
-                if idx % 10 == 0:
+
+                if (idx % 10 == 0) and (idx > 0):
+                    print(">")
                     print ("Saving frame: ..."+output_name)
+                    print(":",end='',flush=True)
                 # drop the duration spot from the list, since this duration spot is already saved
                 try:
                     frames_durations.pop(0)
@@ -108,8 +115,9 @@ class OCR_HANDLER:
                     pass
             # increment the frame count
             idx += 1
-
-        print("Saved and processed",idx,"frames")
+        if (idx-1 % 10 != 0):
+            print(">")
+        print("\nSaved and processed",idx,"frames")
         video.release()
 
     def assemble_video(self):
@@ -139,15 +147,23 @@ class OCR_HANDLER:
             s.append(i)
         return s,video.get(cv2.CAP_PROP_FRAME_COUNT)
     
-    def ocr_frame(self,frame):
-        #Pre-process the frame TODO play with these...
-        gray = self.cv2_helper.get_grayscale(frame) 
-        #thresh = self.cv2_helper.thresholding(gray)
+    def ocr_frame(self,frame,preprocess=["binarization","remove_noise"]):
+        #Pre-process the frame TODO play with preprocessing and segmentation.
+        im = self.cv2_helper.get_grayscale(frame)
+        if "binarization" in preprocess:
+            im = self.cv2_helper.binarization_adaptative_threshold(im)
+        if "deskew" in preprocess: 
+            im = self.cv2_helper.deskew(im)
+        if "remove_noise" in preprocess: 
+            im = self.cv2_helper.remove_noise(im)
+        if "erode" in preprocess:
+            im = self.cv2_helper.erode(im)
 
-        d = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
+        d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
         n_boxes = len(d['text'])
         for i in range(n_boxes):
-            if int(d['conf'][i]) > 60: #Confidence
+            if (int(d['conf'][i]) > 60) and not(d['text'][i].isspace()): #Confidence
+                #print(d['text'][i],d['conf'][i])
                 (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
                 frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
         return frame

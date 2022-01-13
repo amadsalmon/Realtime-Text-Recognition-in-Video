@@ -8,3 +8,7 @@ It is carried out as part of the Computer Vision course held at the Sapienza Uni
 - Amad Salmon (@amadsalmon)
 - Arturo Calvera Tonin (@)
 
+
+## IDEAS
+Try different combinations of preprocessing and choose the one that generates higher confidence values
+Reduce box jerkyness
