@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import pytesseract 
 import os
+import math
 
 # TODO check this preprocessing steps https://towardsdatascience.com/pre-processing-in-ocr-fc231c6035a7
 
@@ -25,7 +26,7 @@ class CV2_HELPER:
         center = (w // 2, h // 2)
         M = cv2.getRotationMatrix2D(center, angle, 1.0)
         rotated = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-        return rotated
+        return rotated,angle
     
     #smoothen the image by removing small dots/patches which have high intensity than the rest of the image
     def remove_noise(self,image):
@@ -101,7 +102,7 @@ class OCR_HANDLER:
                 # if closest duration is less than or equals the frame duration, 
                 # then save the frame
                 output_name = frame_name + str(idx) + '.png'
-                frame=self.ocr_frame(frame,preprocess=["binarization","remove_noise"])
+                frame=self.ocr_frame(frame)
                 cv2.imwrite(output_name,frame)
 
                 if (idx % 10 == 0) and (idx > 0):
@@ -147,23 +148,75 @@ class OCR_HANDLER:
             s.append(i)
         return s,video.get(cv2.CAP_PROP_FRAME_COUNT)
     
-    def ocr_frame(self,frame,preprocess=["binarization","remove_noise"]):
-        #Pre-process the frame TODO play with preprocessing and segmentation.
-        im = self.cv2_helper.get_grayscale(frame)
-        if "binarization" in preprocess:
-            im = self.cv2_helper.binarization_adaptative_threshold(im)
-        if "deskew" in preprocess: 
-            im = self.cv2_helper.deskew(im)
-        if "remove_noise" in preprocess: 
-            im = self.cv2_helper.remove_noise(im)
-        if "erode" in preprocess:
-            im = self.cv2_helper.erode(im)
+    def ocr_frame(self,frame):
 
-        d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
+        def rotate(origin, point, angle):
+            ox, oy = origin
+            px, py = point
+            qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+            qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+            return qx, qy
+
+        #Pre-process the frame TODO play with preprocessing and segmentation.
+
+        im,d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
+
+        #(h, w) = frame.shape[:2]
+        #center = (w // 2, h // 2)
+
         n_boxes = len(d['text'])
         for i in range(n_boxes):
-            if (int(d['conf'][i]) > 60) and not(d['text'][i].isspace()): #Confidence
-                #print(d['text'][i],d['conf'][i])
+            if (int(d['conf'][i]) > 80) and not(d['text'][i].isspace()): #Confidence
                 (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
-                frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                #p1x,p1y=rotate(center,(x,y),angle)
+                #p2x,p2y=rotate(center,((x+w),(y+h)),angle)
+                #frame = cv2.rectangle(frame, (int(p1x), int(p1y)), (int(p2x), int(p2y)), (0, 255, 0), 2)
+                frame = cv2.rectangle(frame, (x,y), (x+w,y+h), (0, 255, 0), 2)
         return frame
+
+    def compute_best_preprocess(self,frame):
+        
+        img = self.cv2_helper.binarization_adaptative_threshold(frame) #Binarization
+        #img, angle = self.cv2_helper.deskew(img)
+        d = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+
+        return img,d
+
+
+        #def f(count,mean):
+        #    return 10*count + mean
+        #best_f=0
+        #best_opt=0
+        #best_im = frame
+        #best_d = None
+        #options = [["binarization"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
+#
+        #for idx, opt in enumerate(options):
+        #    #Apply preprocess
+        #    im=frame
+        #    if "binarization" in opt:
+        #        im = self.cv2_helper.binarization_adaptative_threshold(im)
+        #    if "deskew" in opt: 
+        #        im = self.cv2_helper.deskew(im)
+        #    if "remove_noise" in opt: 
+        #        im = self.cv2_helper.remove_noise(im)
+        #    if "erode" in opt:
+        #        im = self.cv2_helper.erode(im)
+        #    
+        #    #Compute mean conf:
+        #    d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
+        #    confs = [ int(d['conf'][i]) for i in range(len(d['text'])) if not(d['text'][i].isspace())]
+        #    confs = [i for i in confs if i > 60]
+        #    
+        #    mean_conf = np.asarray(confs).mean() if len(confs) > 0 else 0
+#
+        #    #print(len(confs),mean_conf,f(len(confs),mean_conf))
+#
+        #    if (f(len(confs),mean_conf) > best_f):
+        #        best_im = im
+        #        best_d = d
+        #        best_f = f(len(confs),mean_conf)
+        #
+        #return best_im,best_d
+
+
