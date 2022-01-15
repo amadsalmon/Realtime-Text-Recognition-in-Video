@@ -166,7 +166,7 @@ class OCR_HANDLER:
 
         n_boxes = len(d['text'])
         for i in range(n_boxes):
-            if (int(d['conf'][i]) > 80) and not(d['text'][i].isspace()): #Confidence
+            if (int(float(d['conf'][i])) > 80) and not(d['text'][i].isspace()): #Confidence
                 (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
                 #p1x,p1y=rotate(center,(x,y),angle)
                 #p2x,p2y=rotate(center,((x+w),(y+h)),angle)
