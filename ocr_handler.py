@@ -145,8 +145,8 @@ class BOXES_HELPER():
 
     def show_boxes_lines(self,d, frame):
         text_vertical_margin = 12
-        organized_tesseract_dictionary = get_organized_tesseract_dictionary(d)
-        lines_with_words = get_lines_with_words(organized_tesseract_dictionary)
+        organized_tesseract_dictionary = self.get_organized_tesseract_dictionary(d)
+        lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
         # print(lines_with_words)
         for line in lines_with_words:
             x = line['left']
@@ -291,9 +291,9 @@ class OCR_HANDLER:
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
         if (self.ocr_type == "LINES"):
-            frame = boxes_helper.show_boxes_lines(d, frame)
+            frame = self.boxes_helper.show_boxes_lines(d, frame)
         else:
-            frame = boxes_helper.show_boxes_words(d, frame)
+            frame = self.boxes_helper.show_boxes_words(d, frame)
 
         return frame
 
