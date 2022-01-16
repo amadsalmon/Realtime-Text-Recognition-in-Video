@@ -21,7 +21,7 @@ class CV2_HELPER:
 
     def binarization_otsu(self, image):
         blur = cv2.GaussianBlur(image, (5, 5), 0)
-        _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         return thresh
 
     # skew correction to align image with horizontal
@@ -318,7 +318,7 @@ class OCR_HANDLER:
         best_d = None
 
         # options = [["binarization1"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
-        options = [["binarization1"], ["binarization2"]]
+        options = [["binarization1"],["binarization2"]]
 
         for idx, opt in enumerate(options):
             # Apply preprocess
@@ -341,11 +341,12 @@ class OCR_HANDLER:
 
             mean_conf = np.asarray(confs).mean() if len(confs) > 0 else 0
 
-            # print(len(confs),mean_conf,f(len(confs),mean_conf))
+            #print(len(confs),mean_conf,f(len(confs),mean_conf))
 
             if f(len(confs), mean_conf) > best_f:
                 best_im = im
                 best_d = d
                 best_f = f(len(confs), mean_conf)
+                #print(opt)
 
         return best_im, best_d
