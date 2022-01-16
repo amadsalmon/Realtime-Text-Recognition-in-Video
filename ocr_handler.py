@@ -74,6 +74,8 @@ class OCR_HANDLER:
         self.cv2_helper = cv2_helper
         self.video_name = Path(self.video_filepath).stem
         self.frames_folder = OUTPUT_DIR + 'temp/' + self.video_name + '_frames'
+        self._fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Change to 'MP4V' if this doesn't work on your OS.
+        self.out_extension = '.mp4'
         self.out_name = self.video_name + '_boxes' + self.out_extension
 
     ########## EXTRACT FRAMES AND FIND WORDS #############
@@ -137,7 +139,7 @@ class OCR_HANDLER:
         frame = cv2.imread(os.path.join(self.frames_folder, images[0]))
         height, width, layers = frame.shape
 
-        video = cv2.VideoWriter(self.out_name, 0, self.fps, (width, height))
+        video = cv2.VideoWriter(OUTPUT_DIR + self.out_name, self._fourcc, self.fps, (width, height))
 
         for image in images:
             video.write(cv2.imread(os.path.join(self.frames_folder, image)))
