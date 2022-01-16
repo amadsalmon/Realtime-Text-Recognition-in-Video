@@ -189,6 +189,8 @@ class OCR_HANDLER:
         # (h, w) = frame.shape[:2]
         # center = (w // 2, h // 2)
 
+        text_vertical_margin = 10
+
         n_boxes = len(d['text'])
         for i in range(n_boxes):
             if (int(float(d['conf'][i])) > 80) and not (d['text'][i].isspace()):  # Confidence
@@ -197,7 +199,11 @@ class OCR_HANDLER:
                 # p2x,p2y=rotate(center,((x+w),(y+h)),angle)
                 # frame = cv2.rectangle(frame, (int(p1x), int(p1y)), (int(p2x), int(p2y)), (0, 255, 0), 2)
                 frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        return im
+                frame = cv2.putText(frame, text=d['text'][i], org=(x, y - text_vertical_margin),
+                                    fontFace=cv2.FONT_HERSHEY_DUPLEX,
+                                    fontScale=1,
+                                    color=(0, 255, 0), thickness=2)
+        return frame
 
     def compute_best_preprocess(self, frame):
 
