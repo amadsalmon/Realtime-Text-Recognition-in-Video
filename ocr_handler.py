@@ -67,6 +67,102 @@ class CV2_HELPER:
     ################################## OCR PROCESSING ########################
 
 
+def get_organized_tesseract_dictionary(tesseract_dictionary):
+    res = {}
+    n_boxes = len(tesseract_dictionary['level'])
+
+    # Organize blocks
+    res['blocks'] = {}
+    for i in range(n_boxes):
+        if tesseract_dictionary['level'][i] == 2:
+            res['blocks'][tesseract_dictionary['block_num'][i]] = {
+                'left': tesseract_dictionary['left'][i],
+                'top': tesseract_dictionary['top'][i],
+                'width': tesseract_dictionary['width'][i],
+                'height': tesseract_dictionary['height'][i],
+                'paragraphs': {}
+            }
+
+    # Organize paragraphs
+    for i in range(n_boxes):
+        if tesseract_dictionary['level'][i] == 3:
+            res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][i]] = {
+                'left': tesseract_dictionary['left'][i],
+                'top': tesseract_dictionary['top'][i],
+                'width': tesseract_dictionary['width'][i],
+                'height': tesseract_dictionary['height'][i],
+                'lines': {}
+            }
+
+    # Organize lines
+    for i in range(n_boxes):
+        if tesseract_dictionary['level'][i] == 4:
+            res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][
+                i]]['lines'][tesseract_dictionary['line_num'][i]] = {
+                'left': tesseract_dictionary['left'][i],
+                'top': tesseract_dictionary['top'][i],
+                'width': tesseract_dictionary['width'][i],
+                'height': tesseract_dictionary['height'][i],
+                'words': {}
+            }
+
+    # Organize words
+    for i in range(n_boxes):
+        if tesseract_dictionary['level'][i] == 5:
+            res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
+                tesseract_dictionary['par_num'][
+                    i]]['lines'][tesseract_dictionary['line_num'][i]]['words'][tesseract_dictionary['word_num'][i]] \
+                = {
+                'left': tesseract_dictionary['left'][i],
+                'top': tesseract_dictionary['top'][i],
+                'width': tesseract_dictionary['width'][i],
+                'height': tesseract_dictionary['height'][i],
+                'text': tesseract_dictionary['text'][i],
+                'conf': float(tesseract_dictionary['conf'][i]),
+            }
+
+    return res
+
+
+def get_lines_with_words(organized_tesseract_dictionary):
+    res = []
+    for block in organized_tesseract_dictionary['blocks'].values():
+        for paragraph in block['paragraphs'].values():
+            for line in paragraph['lines'].values():
+                if 'words' in line and len(line['words']) > 0:
+                    currentLineText = ''
+                    for word in line['words'].values():
+                        if word['conf'] > 80.0 and not word['text'].isspace():
+                            currentLineText += word['text'] + ' '
+                    if currentLineText != '':
+                        res.append({'text': currentLineText, 'left': line['left'], 'top': line['top'], 'width': line[
+                            'width'], 'height': line[
+                            'height']})
+
+    return res
+
+
+def show_boxes_lines(d, frame):
+    text_vertical_margin = 12
+    organized_tesseract_dictionary = get_organized_tesseract_dictionary(d)
+    lines_with_words = get_lines_with_words(organized_tesseract_dictionary)
+    # print(lines_with_words)
+    for line in lines_with_words:
+        x = line['left']
+        y = line['top']
+        h = line['height']
+        w = line['width']
+        frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        frame = cv2.putText(frame,
+                            text=line['text'],
+                            org=(x, y - text_vertical_margin),
+                            fontFace=cv2.FONT_HERSHEY_DUPLEX,
+                            fontScale=1,
+                            color=(0, 255, 0),
+                            thickness=2)
+    return frame
+
+
 class OCR_HANDLER:
     def __init__(self, video_filepath, cv2_helper):
         # The video_filepath's name with extension
@@ -161,8 +257,6 @@ class OCR_HANDLER:
         except OSError as e:
             print("Error: %s : %s" % (self.frames_folder, e.strerror))
 
-
-
     def get_saving_frames_durations(self, video, saving_fps):
         """A function that returns the list of durations where to save the frames"""
         s = []
@@ -186,23 +280,23 @@ class OCR_HANDLER:
 
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
-        # (h, w) = frame.shape[:2]
-        # center = (w // 2, h // 2)
+        text_vertical_margin = 12
 
-        text_vertical_margin = 10
+        # n_boxes = len(d['level'])
+        # for i in range(n_boxes):
+        #     if (int(float(d['conf'][i])) > 80) and not (d['text'][i].isspace()):  # Words
+        #         (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
+        #         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        #         frame = cv2.putText(frame, text=d['text'][i], org=(x, y - text_vertical_margin),
+        #                             fontFace=cv2.FONT_HERSHEY_DUPLEX,
+        #                             fontScale=1,
+        #                             color=(0, 255, 0), thickness=2)
+        #     else:  # Lines
+        #         (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
+        #         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-        n_boxes = len(d['text'])
-        for i in range(n_boxes):
-            if (int(float(d['conf'][i])) > 80) and not (d['text'][i].isspace()):  # Confidence
-                (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
-                # p1x,p1y=rotate(center,(x,y),angle)
-                # p2x,p2y=rotate(center,((x+w),(y+h)),angle)
-                # frame = cv2.rectangle(frame, (int(p1x), int(p1y)), (int(p2x), int(p2y)), (0, 255, 0), 2)
-                frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                frame = cv2.putText(frame, text=d['text'][i], org=(x, y - text_vertical_margin),
-                                    fontFace=cv2.FONT_HERSHEY_DUPLEX,
-                                    fontScale=1,
-                                    color=(0, 255, 0), thickness=2)
+        frame = show_boxes_lines(d, frame)
+
         return frame
 
     def compute_best_preprocess(self, frame):
@@ -220,6 +314,7 @@ class OCR_HANDLER:
         # best_im = frame
         # best_d = None
         # options = [["binarization"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
+
 #
 # for idx, opt in enumerate(options):
 #    #Apply preprocess

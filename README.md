@@ -6,7 +6,7 @@ It is carried out as part of the Computer Vision course held at the Sapienza Uni
 ## Authors
 
 - Amad Salmon (@amadsalmon)
-- Arturo Calvera Tonin (@)
+- Arturo Calvera Tonin (@Arturo-00)
 
 
 ## IDEAS
