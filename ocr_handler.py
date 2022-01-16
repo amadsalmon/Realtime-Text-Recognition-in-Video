@@ -184,7 +184,7 @@ class OCR_HANDLER:
         # The video_filepath's name with extension
         self.video_filepath = video_filepath
         self.cv2_helper = cv2_helper
-        self.ocr_type=ocr_type
+        self.ocr_type= ocr_type
         self.boxes_helper = BOXES_HELPER()
         self.video_name = Path(self.video_filepath).stem
         self.frames_folder = OUTPUT_DIR + 'temp/' + self.video_name + '_frames'
@@ -299,48 +299,47 @@ class OCR_HANDLER:
 
     def compute_best_preprocess(self, frame):
 
-        img = self.cv2_helper.binarization_adaptative_threshold(frame)  # Binarization
-        img = self.cv2_helper.remove_noise(img)
-        img = self.cv2_helper.erode(img)
+        #img = self.cv2_helper.binarization_adaptative_threshold(frame)  # Binarization
+        #img = self.cv2_helper.remove_noise(img)
+        #img = self.cv2_helper.erode(img)
+        #d = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
 
-        # img, angle = self.cv2_helper.deskew(img)
-        d = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+        def f(count,mean):
+            return 10*count + mean
 
-        return img, d
+        best_f=0
+        best_opt=0
+        best_im = frame
+        best_d = None
+        options = [["binarization"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
 
-        # def f(count,mean):
-        #    return 10*count + mean
-        # best_f=0
-        # best_opt=0
-        # best_im = frame
-        # best_d = None
-        # options = [["binarization"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
+        for idx, opt in enumerate(options):
+            #Apply preprocess
+            im=frame
+            if "binarization" in opt:
+                im = self.cv2_helper.binarization_adaptative_threshold(im)
+            if "deskew" in opt:
+                im = self.cv2_helper.deskew(im)
+            if "remove_noise" in opt:
+                im = self.cv2_helper.remove_noise(im)
+            if "erode" in opt:
+                im = self.cv2_helper.erode(im)
 
-#
-# for idx, opt in enumerate(options):
-#    #Apply preprocess
-#    im=frame
-#    if "binarization" in opt:
-#        im = self.cv2_helper.binarization_adaptative_threshold(im)
-#    if "deskew" in opt:
-#        im = self.cv2_helper.deskew(im)
-#    if "remove_noise" in opt:
-#        im = self.cv2_helper.remove_noise(im)
-#    if "erode" in opt:
-#        im = self.cv2_helper.erode(im)
-#
-#    #Compute mean conf:
-#    d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
-#    confs = [ int(d['conf'][i]) for i in range(len(d['text'])) if not(d['text'][i].isspace())]
-#    confs = [i for i in confs if i > 60]
-#
-#    mean_conf = np.asarray(confs).mean() if len(confs) > 0 else 0
-#
-#    #print(len(confs),mean_conf,f(len(confs),mean_conf))
-#
-#    if (f(len(confs),mean_conf) > best_f):
-#        best_im = im
-#        best_d = d
-#        best_f = f(len(confs),mean_conf)
-#
-# return best_im,best_d
+            #Compute mean conf:
+            d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
+            confs = [ int(d['conf'][i]) for i in range(len(d['text'])) if not(d['text'][i].isspace())]
+            confs = [i for i in confs if i > 60]
+
+            mean_conf = np.asarray(confs).mean() if len(confs) > 0 else 0
+
+            #print(len(confs),mean_conf,f(len(confs),mean_conf))
+
+            if (f(len(confs),mean_conf) > best_f):
+                best_im = im
+                best_d = d
+                best_f = f(len(confs),mean_conf)
+
+        return best_im,best_d
+
+
+

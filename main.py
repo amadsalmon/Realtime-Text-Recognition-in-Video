@@ -5,7 +5,6 @@ filename = input("ENTER FILENAME: ")
 
 ocr_type = input("ENTER OCR_MODE (WORDS/LINES): ")
 
-
 if os.path.isfile(filename):
     ocr_handler = OCR_HANDLER(filename, CV2_HELPER(),ocr_type)
     ocr_handler.process_frames()
