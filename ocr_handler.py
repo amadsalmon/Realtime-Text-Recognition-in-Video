@@ -18,6 +18,11 @@ class CV2_HELPER:
     def binarization_adaptative_threshold(self, image):
         # 11 => size of a pixel neighborhood that is used to calculate a threshold value for the pixel
         return cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    
+    def binarization_otsu(self,image):
+        blur = cv.GaussianBlur(image,(5,5),0)
+        _, thresh = cv.threshold(blur,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
+        return thresh
 
     # skew correction to align image with horizontal
     def deskew(self, image):
@@ -145,8 +150,8 @@ class BOXES_HELPER():
 
     def show_boxes_lines(self,d, frame):
         text_vertical_margin = 12
-        organized_tesseract_dictionary = self.get_organized_tesseract_dictionary(d)
-        lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
+        organized_tesseract_dictionary = get_organized_tesseract_dictionary(d)
+        lines_with_words = get_lines_with_words(organized_tesseract_dictionary)
         # print(lines_with_words)
         for line in lines_with_words:
             x = line['left']
@@ -291,11 +296,11 @@ class OCR_HANDLER:
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
         if (self.ocr_type == "LINES"):
-            frame = self.boxes_helper.show_boxes_lines(d, frame)
+            frame = boxes_helper.show_boxes_lines(d, frame)
         else:
-            frame = self.boxes_helper.show_boxes_words(d, frame)
+            frame = boxes_helper.show_boxes_words(d, frame)
 
-        return frame
+        return im
 
     def compute_best_preprocess(self, frame):
 
@@ -311,13 +316,17 @@ class OCR_HANDLER:
         best_opt=0
         best_im = frame
         best_d = None
-        options = [["binarization"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
+
+        #options = [["binarization1"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
+        options = [["binarization1"],["binarization2"]]
 
         for idx, opt in enumerate(options):
             #Apply preprocess
             im=frame
-            if "binarization" in opt:
+            if "binarization1" in opt:
                 im = self.cv2_helper.binarization_adaptative_threshold(im)
+            if "binarization2" in opt:
+                im = self.cv2_helper.binarization_otsu(im)
             if "deskew" in opt:
                 im = self.cv2_helper.deskew(im)
             if "remove_noise" in opt:
