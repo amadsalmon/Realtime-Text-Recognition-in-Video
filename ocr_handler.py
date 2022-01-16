@@ -18,10 +18,10 @@ class CV2_HELPER:
     def binarization_adaptative_threshold(self, image):
         # 11 => size of a pixel neighborhood that is used to calculate a threshold value for the pixel
         return cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    
-    def binarization_otsu(self,image):
-        blur = cv.GaussianBlur(image,(5,5),0)
-        _, thresh = cv.threshold(blur,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
+
+    def binarization_otsu(self, image):
+        blur = cv2.GaussianBlur(image, (5, 5), 0)
+        _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return thresh
 
     # skew correction to align image with horizontal
@@ -71,9 +71,10 @@ class CV2_HELPER:
 
     ################################## OCR PROCESSING ########################
 
+
 class BOXES_HELPER():
-    
-    def get_organized_tesseract_dictionary(self,tesseract_dictionary):
+
+    def get_organized_tesseract_dictionary(self, tesseract_dictionary):
         res = {}
         n_boxes = len(tesseract_dictionary['level'])
 
@@ -92,7 +93,8 @@ class BOXES_HELPER():
         # Organize paragraphs
         for i in range(n_boxes):
             if tesseract_dictionary['level'][i] == 3:
-                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][i]]   = {
+                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
+                    tesseract_dictionary['par_num'][i]] = {
                     'left': tesseract_dictionary['left'][i],
                     'top': tesseract_dictionary['top'][i],
                     'width': tesseract_dictionary['width'][i],
@@ -117,7 +119,7 @@ class BOXES_HELPER():
             if tesseract_dictionary['level'][i] == 5:
                 res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
                     tesseract_dictionary['par_num'][
-                        i]]['lines'][tesseract_dictionary['line_num'][i]]['words'][tesseract_dictionary['word_num'][i]  ] \
+                        i]]['lines'][tesseract_dictionary['line_num'][i]]['words'][tesseract_dictionary['word_num'][i]] \
                     = {
                     'left': tesseract_dictionary['left'][i],
                     'top': tesseract_dictionary['top'][i],
@@ -129,8 +131,7 @@ class BOXES_HELPER():
 
         return res
 
-
-    def get_lines_with_words(self,organized_tesseract_dictionary):
+    def get_lines_with_words(self, organized_tesseract_dictionary):
         res = []
         for block in organized_tesseract_dictionary['blocks'].values():
             for paragraph in block['paragraphs'].values():
@@ -141,17 +142,17 @@ class BOXES_HELPER():
                             if word['conf'] > 60.0 and not word['text'].isspace():
                                 currentLineText += word['text'] + ' '
                         if currentLineText != '':
-                            res.append({'text': currentLineText, 'left': line['left'], 'top': line['top'], 'width':     line[
-                                'width'], 'height': line[
-                                'height']})
+                            res.append(
+                                {'text': currentLineText, 'left': line['left'], 'top': line['top'], 'width': line[
+                                    'width'], 'height': line[
+                                    'height']})
 
         return res
 
-
-    def show_boxes_lines(self,d, frame):
+    def show_boxes_lines(self, d, frame):
         text_vertical_margin = 12
-        organized_tesseract_dictionary = get_organized_tesseract_dictionary(d)
-        lines_with_words = get_lines_with_words(organized_tesseract_dictionary)
+        organized_tesseract_dictionary = self.get_organized_tesseract_dictionary(d)
+        lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
         # print(lines_with_words)
         for line in lines_with_words:
             x = line['left']
@@ -168,7 +169,7 @@ class BOXES_HELPER():
                                 thickness=2)
         return frame
 
-    def show_boxes_words(self,d,frame):
+    def show_boxes_words(self, d, frame):
         text_vertical_margin = 12
         n_boxes = len(d['level'])
         for i in range(n_boxes):
@@ -177,10 +178,9 @@ class BOXES_HELPER():
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 frame = cv2.putText(frame, text=d['text'][i], org=(x, y - text_vertical_margin),
                                     fontFace=cv2.FONT_HERSHEY_DUPLEX,
-                                     fontScale=1,
-                                     color=(0, 255, 0), thickness=2)
+                                    fontScale=1,
+                                    color=(0, 255, 0), thickness=2)
         return frame
-
 
 
 class OCR_HANDLER:
@@ -189,7 +189,7 @@ class OCR_HANDLER:
         # The video_filepath's name with extension
         self.video_filepath = video_filepath
         self.cv2_helper = cv2_helper
-        self.ocr_type= ocr_type
+        self.ocr_type = ocr_type
         self.boxes_helper = BOXES_HELPER()
         self.video_name = Path(self.video_filepath).stem
         self.frames_folder = OUTPUT_DIR + 'temp/' + self.video_name + '_frames'
@@ -296,33 +296,33 @@ class OCR_HANDLER:
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
         if (self.ocr_type == "LINES"):
-            frame = boxes_helper.show_boxes_lines(d, frame)
+            frame = self.boxes_helper.show_boxes_lines(d, frame)
         else:
-            frame = boxes_helper.show_boxes_words(d, frame)
+            frame = self.boxes_helper.show_boxes_words(d, frame)
 
-        return im
+        return frame
 
     def compute_best_preprocess(self, frame):
 
-        #img = self.cv2_helper.binarization_adaptative_threshold(frame)  # Binarization
-        #img = self.cv2_helper.remove_noise(img)
-        #img = self.cv2_helper.erode(img)
-        #d = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+        # img = self.cv2_helper.binarization_adaptative_threshold(frame)  # Binarization
+        # img = self.cv2_helper.remove_noise(img)
+        # img = self.cv2_helper.erode(img)
+        # d = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
 
-        def f(count,mean):
-            return 10*count + mean
+        def f(count, mean):
+            return 10 * count + mean
 
-        best_f=0
-        best_opt=0
+        best_f = 0
+        best_opt = 0
         best_im = frame
         best_d = None
 
-        #options = [["binarization1"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
-        options = [["binarization1"],["binarization2"]]
+        # options = [["binarization1"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
+        options = [["binarization1"], ["binarization2"]]
 
         for idx, opt in enumerate(options):
-            #Apply preprocess
-            im=frame
+            # Apply preprocess
+            im = frame
             if "binarization1" in opt:
                 im = self.cv2_helper.binarization_adaptative_threshold(im)
             if "binarization2" in opt:
@@ -334,21 +334,18 @@ class OCR_HANDLER:
             if "erode" in opt:
                 im = self.cv2_helper.erode(im)
 
-            #Compute mean conf:
+            # Compute mean conf:
             d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
-            confs = [ int(d['conf'][i]) for i in range(len(d['text'])) if not(d['text'][i].isspace())]
+            confs = [int(float(d['conf'][i])) for i in range(len(d['text'])) if not (d['text'][i].isspace())]
             confs = [i for i in confs if i > 60]
 
             mean_conf = np.asarray(confs).mean() if len(confs) > 0 else 0
 
-            #print(len(confs),mean_conf,f(len(confs),mean_conf))
+            # print(len(confs),mean_conf,f(len(confs),mean_conf))
 
-            if (f(len(confs),mean_conf) > best_f):
+            if f(len(confs), mean_conf) > best_f:
                 best_im = im
                 best_d = d
-                best_f = f(len(confs),mean_conf)
+                best_f = f(len(confs), mean_conf)
 
-        return best_im,best_d
-
-
-
+        return best_im, best_d
