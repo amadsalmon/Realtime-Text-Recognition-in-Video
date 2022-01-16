@@ -8,9 +8,6 @@ from pathlib import Path
 INPUT_DIR = "./input/"
 OUTPUT_DIR = "./output/"
 
-
-# TODO check this preprocessing steps https://towardsdatascience.com/pre-processing-in-ocr-fc231c6035a7
-
 ################################## CV2 FUNCTIONS ########################
 class CV2_HELPER:
 
@@ -24,28 +21,9 @@ class CV2_HELPER:
         _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         return thresh
 
-    # skew correction to align image with horizontal
-    def deskew(self, image):
-        coords = np.column_stack(np.where(image > 0))
-        angle = cv2.minAreaRect(coords)[-1]
-        if angle < -45:
-            angle = -(90 + angle)
-        else:
-            angle = -angle
-        (h, w) = image.shape[:2]
-        center = (w // 2, h // 2)
-        M = cv2.getRotationMatrix2D(center, angle, 1.0)
-        rotated = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-        return rotated, angle
-
     # smoothen the image by removing small dots/patches which have high intensity than the rest of the image
     def remove_noise(self, image):
         return cv2.medianBlur(image, 5)
-
-    # to make the width of strokes uniform, we have to perform Thinning and Skeletonization
-    def erode(self, image):
-        kernel = np.ones((5, 5), np.uint8)
-        return cv2.erode(image, kernel, iterations=1)
 
     # get grayscale image
     def get_grayscale(self, image):
@@ -54,20 +32,7 @@ class CV2_HELPER:
     # dilation
     def dilate(self, image):
         kernel = np.ones((5, 5), np.uint8)
-        return cv2.dilate(image, kernel, iterations=1)
-
-    # opening - erosion followed by dilation
-    def opening(self, image):
-        kernel = np.ones((5, 5), np.uint8)
-        return cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
-
-    # canny edge detection
-    def canny(self, image):
-        return cv2.Canny(image, 100, 200)
-
-    # template matching
-    def match_template(self, image, template):
-        return cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+        return cv2.erode(image, kernel, iterations=1)
 
     ################################## OCR PROCESSING ########################
 
@@ -173,7 +138,7 @@ class BOXES_HELPER():
         text_vertical_margin = 12
         n_boxes = len(d['level'])
         for i in range(n_boxes):
-            if (int(float(d['conf'][i])) > 80) and not (d['text'][i].isspace()):  # Words
+            if (int(float(d['conf'][i])) > 60) and not (d['text'][i].isspace()):  # Words
                 (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 frame = cv2.putText(frame, text=d['text'][i], org=(x, y - text_vertical_margin),
@@ -205,8 +170,7 @@ class OCR_HANDLER:
         if not os.path.exists(self.frames_folder):
             os.makedirs(self.frames_folder)
 
-        video = cv2.VideoCapture(
-            self.video_filepath)  # TODO Missing error code for when the video_filepath cannot be oppened
+        video = cv2.VideoCapture(self.video_filepath)
         self.fps = round(video.get(cv2.CAP_PROP_FPS))  # get the FPS of the video_filepath
         frames_durations, frame_count = self.get_saving_frames_durations(video, self.fps)  # list of point to save
 
@@ -291,7 +255,6 @@ class OCR_HANDLER:
         return s, video.get(cv2.CAP_PROP_FRAME_COUNT)
 
     def ocr_frame(self, frame):
-        # Pre-process the frame TODO play with preprocessing and segmentation.
 
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
@@ -303,12 +266,6 @@ class OCR_HANDLER:
         return frame
 
     def compute_best_preprocess(self, frame):
-
-        # img = self.cv2_helper.binarization_adaptative_threshold(frame)  # Binarization
-        # img = self.cv2_helper.remove_noise(img)
-        # img = self.cv2_helper.erode(img)
-        # d = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
-
         def f(count, mean):
             return 10 * count + mean
 
@@ -316,9 +273,7 @@ class OCR_HANDLER:
         best_opt = 0
         best_im = frame
         best_d = None
-
-        # options = [["binarization1"],["binarization","remove_noise"],["binarization","remove_noise","erode"]]
-        options = [["binarization1"],["binarization2"]]
+        options = [["binarization1"],["binarization2"],["binarization2","remove_noise","dilate"]]
 
         for idx, opt in enumerate(options):
             # Apply preprocess
@@ -327,12 +282,10 @@ class OCR_HANDLER:
                 im = self.cv2_helper.binarization_adaptative_threshold(im)
             if "binarization2" in opt:
                 im = self.cv2_helper.binarization_otsu(im)
-            if "deskew" in opt:
-                im = self.cv2_helper.deskew(im)
             if "remove_noise" in opt:
                 im = self.cv2_helper.remove_noise(im)
-            if "erode" in opt:
-                im = self.cv2_helper.erode(im)
+            if "dilate" in opt:
+                im = self.cv2_helper.dilate(im)
 
             # Compute mean conf:
             d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
