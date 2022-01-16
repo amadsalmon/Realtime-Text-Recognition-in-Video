@@ -133,8 +133,8 @@ class OCR_HANDLER:
 
         print("ASSEMBLING NEW VIDEO")
 
-        images = [img for img in os.listdir(self.frames_folder) if img.endswith(".png")]  # Carefull with the order
-        images = sorted(images, key=lambda x: float((x.split("_")[2])[:-4]))
+        images = [img for img in os.listdir(self.frames_folder) if img.endswith(".png")]  # Careful with the order
+        images = sorted(images, key=lambda x: float((x.split("_")[-1])[:-4]))
 
         frame = cv2.imread(os.path.join(self.frames_folder, images[0]))
         height, width, layers = frame.shape
