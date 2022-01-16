@@ -3,6 +3,10 @@ import numpy as np
 import pytesseract
 import os
 import math
+from pathlib import Path
+
+INPUT_DIR = "./input/"
+OUTPUT_DIR = "./output/"
 
 
 # TODO check this preprocessing steps https://towardsdatascience.com/pre-processing-in-ocr-fc231c6035a7
@@ -64,24 +68,25 @@ class CV2_HELPER:
 
 
 class OCR_HANDLER:
-    def __init__(self, video, cv2_helper):
-        # The video's name with extension
-        self.video = video
+    def __init__(self, video_filepath, cv2_helper):
+        # The video_filepath's name with extension
+        self.video_filepath = video_filepath
         self.cv2_helper = cv2_helper
-        self.video_without_ext = self.video.split(".")[0]
-        self.frames_folder = self.video_without_ext + '_frames'
-        self.out_name = self.video_without_ext + '_boxes.avi'
+        self.video_name = Path(self.video_filepath).stem
+        self.frames_folder = OUTPUT_DIR + 'temp/' + self.video_name + '_frames'
+        self.out_name = self.video_name + '_boxes' + self.out_extension
 
     ########## EXTRACT FRAMES AND FIND WORDS #############
     def process_frames(self):
 
-        frame_name = './' + self.frames_folder + '/' + self.video_without_ext + '_frame_'
+        frame_name = './' + self.frames_folder + '/' + self.video_name + '_frame_'
 
         if not os.path.exists(self.frames_folder):
             os.makedirs(self.frames_folder)
 
-        video = cv2.VideoCapture(self.video)  # TODO Missing error code for when the video cannot be oppened
-        self.fps = round(video.get(cv2.CAP_PROP_FPS))  # get the FPS of the video
+        video = cv2.VideoCapture(
+            self.video_filepath)  # TODO Missing error code for when the video_filepath cannot be oppened
+        self.fps = round(video.get(cv2.CAP_PROP_FPS))  # get the FPS of the video_filepath
         frames_durations, frame_count = self.get_saving_frames_durations(video, self.fps)  # list of point to save
 
         print("SAVING VIDEO:", frame_count, "FRAMES AT", self.fps, "FPS")
@@ -101,8 +106,7 @@ class OCR_HANDLER:
                 # the list is empty, all duration frames were saved
                 break
             if frame_duration >= closest_duration:
-                # if closest duration is less than or equals the frame duration, 
-                # then save the frame
+                # if closest duration is less than or equals the frame duration, then save the frame
                 output_name = frame_name + str(idx) + '.png'
                 frame = self.ocr_frame(frame)
                 cv2.imwrite(output_name, frame)
@@ -139,6 +143,23 @@ class OCR_HANDLER:
             video.write(cv2.imread(os.path.join(self.frames_folder, image)))
 
         video.release()
+
+        # When finished, delete all frames stored temporarily on disk.
+        for f in os.listdir(self.frames_folder):
+            if not f.endswith(".png"):
+                continue
+            try:
+                os.remove(os.path.join(self.frames_folder, f))
+            except OSError as e:
+                print("Error: %s : %s" % (self.frames_folder, e.strerror))
+
+        # Then delete the directory that contained the frames.
+        try:
+            os.rmdir(self.frames_folder)
+        except OSError as e:
+            print("Error: %s : %s" % (self.frames_folder, e.strerror))
+
+
 
     def get_saving_frames_durations(self, video, saving_fps):
         """A function that returns the list of durations where to save the frames"""
