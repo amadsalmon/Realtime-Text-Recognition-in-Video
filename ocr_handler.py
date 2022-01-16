@@ -66,112 +66,130 @@ class CV2_HELPER:
 
     ################################## OCR PROCESSING ########################
 
+class BOXES_HELPER():
+    
+    def get_organized_tesseract_dictionary(self,tesseract_dictionary):
+        res = {}
+        n_boxes = len(tesseract_dictionary['level'])
 
-def get_organized_tesseract_dictionary(tesseract_dictionary):
-    res = {}
-    n_boxes = len(tesseract_dictionary['level'])
+        # Organize blocks
+        res['blocks'] = {}
+        for i in range(n_boxes):
+            if tesseract_dictionary['level'][i] == 2:
+                res['blocks'][tesseract_dictionary['block_num'][i]] = {
+                    'left': tesseract_dictionary['left'][i],
+                    'top': tesseract_dictionary['top'][i],
+                    'width': tesseract_dictionary['width'][i],
+                    'height': tesseract_dictionary['height'][i],
+                    'paragraphs': {}
+                }
 
-    # Organize blocks
-    res['blocks'] = {}
-    for i in range(n_boxes):
-        if tesseract_dictionary['level'][i] == 2:
-            res['blocks'][tesseract_dictionary['block_num'][i]] = {
-                'left': tesseract_dictionary['left'][i],
-                'top': tesseract_dictionary['top'][i],
-                'width': tesseract_dictionary['width'][i],
-                'height': tesseract_dictionary['height'][i],
-                'paragraphs': {}
-            }
+        # Organize paragraphs
+        for i in range(n_boxes):
+            if tesseract_dictionary['level'][i] == 3:
+                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][i]]   = {
+                    'left': tesseract_dictionary['left'][i],
+                    'top': tesseract_dictionary['top'][i],
+                    'width': tesseract_dictionary['width'][i],
+                    'height': tesseract_dictionary['height'][i],
+                    'lines': {}
+                }
 
-    # Organize paragraphs
-    for i in range(n_boxes):
-        if tesseract_dictionary['level'][i] == 3:
-            res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][i]] = {
-                'left': tesseract_dictionary['left'][i],
-                'top': tesseract_dictionary['top'][i],
-                'width': tesseract_dictionary['width'][i],
-                'height': tesseract_dictionary['height'][i],
-                'lines': {}
-            }
+        # Organize lines
+        for i in range(n_boxes):
+            if tesseract_dictionary['level'][i] == 4:
+                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][
+                    i]]['lines'][tesseract_dictionary['line_num'][i]] = {
+                    'left': tesseract_dictionary['left'][i],
+                    'top': tesseract_dictionary['top'][i],
+                    'width': tesseract_dictionary['width'][i],
+                    'height': tesseract_dictionary['height'][i],
+                    'words': {}
+                }
 
-    # Organize lines
-    for i in range(n_boxes):
-        if tesseract_dictionary['level'][i] == 4:
-            res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][
-                i]]['lines'][tesseract_dictionary['line_num'][i]] = {
-                'left': tesseract_dictionary['left'][i],
-                'top': tesseract_dictionary['top'][i],
-                'width': tesseract_dictionary['width'][i],
-                'height': tesseract_dictionary['height'][i],
-                'words': {}
-            }
+        # Organize words
+        for i in range(n_boxes):
+            if tesseract_dictionary['level'][i] == 5:
+                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
+                    tesseract_dictionary['par_num'][
+                        i]]['lines'][tesseract_dictionary['line_num'][i]]['words'][tesseract_dictionary['word_num'][i]  ] \
+                    = {
+                    'left': tesseract_dictionary['left'][i],
+                    'top': tesseract_dictionary['top'][i],
+                    'width': tesseract_dictionary['width'][i],
+                    'height': tesseract_dictionary['height'][i],
+                    'text': tesseract_dictionary['text'][i],
+                    'conf': float(tesseract_dictionary['conf'][i]),
+                }
 
-    # Organize words
-    for i in range(n_boxes):
-        if tesseract_dictionary['level'][i] == 5:
-            res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
-                tesseract_dictionary['par_num'][
-                    i]]['lines'][tesseract_dictionary['line_num'][i]]['words'][tesseract_dictionary['word_num'][i]] \
-                = {
-                'left': tesseract_dictionary['left'][i],
-                'top': tesseract_dictionary['top'][i],
-                'width': tesseract_dictionary['width'][i],
-                'height': tesseract_dictionary['height'][i],
-                'text': tesseract_dictionary['text'][i],
-                'conf': float(tesseract_dictionary['conf'][i]),
-            }
-
-    return res
-
-
-def get_lines_with_words(organized_tesseract_dictionary):
-    res = []
-    for block in organized_tesseract_dictionary['blocks'].values():
-        for paragraph in block['paragraphs'].values():
-            for line in paragraph['lines'].values():
-                if 'words' in line and len(line['words']) > 0:
-                    currentLineText = ''
-                    for word in line['words'].values():
-                        if word['conf'] > 80.0 and not word['text'].isspace():
-                            currentLineText += word['text'] + ' '
-                    if currentLineText != '':
-                        res.append({'text': currentLineText, 'left': line['left'], 'top': line['top'], 'width': line[
-                            'width'], 'height': line[
-                            'height']})
-
-    return res
+        return res
 
 
-def show_boxes_lines(d, frame):
-    text_vertical_margin = 12
-    organized_tesseract_dictionary = get_organized_tesseract_dictionary(d)
-    lines_with_words = get_lines_with_words(organized_tesseract_dictionary)
-    # print(lines_with_words)
-    for line in lines_with_words:
-        x = line['left']
-        y = line['top']
-        h = line['height']
-        w = line['width']
-        frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        frame = cv2.putText(frame,
-                            text=line['text'],
-                            org=(x, y - text_vertical_margin),
-                            fontFace=cv2.FONT_HERSHEY_DUPLEX,
-                            fontScale=1,
-                            color=(0, 255, 0),
-                            thickness=2)
-    return frame
+    def get_lines_with_words(self,organized_tesseract_dictionary):
+        res = []
+        for block in organized_tesseract_dictionary['blocks'].values():
+            for paragraph in block['paragraphs'].values():
+                for line in paragraph['lines'].values():
+                    if 'words' in line and len(line['words']) > 0:
+                        currentLineText = ''
+                        for word in line['words'].values():
+                            if word['conf'] > 60.0 and not word['text'].isspace():
+                                currentLineText += word['text'] + ' '
+                        if currentLineText != '':
+                            res.append({'text': currentLineText, 'left': line['left'], 'top': line['top'], 'width':     line[
+                                'width'], 'height': line[
+                                'height']})
+
+        return res
+
+
+    def show_boxes_lines(self,d, frame):
+        text_vertical_margin = 12
+        organized_tesseract_dictionary = get_organized_tesseract_dictionary(d)
+        lines_with_words = get_lines_with_words(organized_tesseract_dictionary)
+        # print(lines_with_words)
+        for line in lines_with_words:
+            x = line['left']
+            y = line['top']
+            h = line['height']
+            w = line['width']
+            frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            frame = cv2.putText(frame,
+                                text=line['text'],
+                                org=(x, y - text_vertical_margin),
+                                fontFace=cv2.FONT_HERSHEY_DUPLEX,
+                                fontScale=1,
+                                color=(0, 255, 0),
+                                thickness=2)
+        return frame
+
+    def show_boxes_words(self,d,frame):
+        text_vertical_margin = 12
+        n_boxes = len(d['level'])
+        for i in range(n_boxes):
+            if (int(float(d['conf'][i])) > 80) and not (d['text'][i].isspace()):  # Words
+                (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                frame = cv2.putText(frame, text=d['text'][i], org=(x, y - text_vertical_margin),
+                                    fontFace=cv2.FONT_HERSHEY_DUPLEX,
+                                     fontScale=1,
+                                     color=(0, 255, 0), thickness=2)
+        return frame
+
 
 
 class OCR_HANDLER:
-    def __init__(self, video_filepath, cv2_helper):
+
+    def __init__(self, video_filepath, cv2_helper, ocr_type="WORDS"):
         # The video_filepath's name with extension
         self.video_filepath = video_filepath
         self.cv2_helper = cv2_helper
+        self.ocr_type=ocr_type
+        self.boxes_helper = BOXES_HELPER()
         self.video_name = Path(self.video_filepath).stem
         self.frames_folder = OUTPUT_DIR + 'temp/' + self.video_name + '_frames'
         self._fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Change to 'MP4V' if this doesn't work on your OS.
-        self.out_extension = '.mp4'
+        self.out_extension = '.avi'
         self.out_name = self.video_name + '_boxes' + self.out_extension
 
     ########## EXTRACT FRAMES AND FIND WORDS #############
@@ -235,7 +253,7 @@ class OCR_HANDLER:
         frame = cv2.imread(os.path.join(self.frames_folder, images[0]))
         height, width, layers = frame.shape
 
-        video = cv2.VideoWriter(OUTPUT_DIR + self.out_name, self._fourcc, self.fps, (width, height))
+        video = cv2.VideoWriter(OUTPUT_DIR + self.out_name, 0, self.fps, (width, height))
 
         for image in images:
             video.write(cv2.imread(os.path.join(self.frames_folder, image)))
@@ -268,40 +286,23 @@ class OCR_HANDLER:
         return s, video.get(cv2.CAP_PROP_FRAME_COUNT)
 
     def ocr_frame(self, frame):
-
-        def rotate(origin, point, angle):
-            ox, oy = origin
-            px, py = point
-            qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
-            qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
-            return qx, qy
-
         # Pre-process the frame TODO play with preprocessing and segmentation.
 
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
-        text_vertical_margin = 12
-
-        # n_boxes = len(d['level'])
-        # for i in range(n_boxes):
-        #     if (int(float(d['conf'][i])) > 80) and not (d['text'][i].isspace()):  # Words
-        #         (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
-        #         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        #         frame = cv2.putText(frame, text=d['text'][i], org=(x, y - text_vertical_margin),
-        #                             fontFace=cv2.FONT_HERSHEY_DUPLEX,
-        #                             fontScale=1,
-        #                             color=(0, 255, 0), thickness=2)
-        #     else:  # Lines
-        #         (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
-        #         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
-        frame = show_boxes_lines(d, frame)
+        if (self.ocr_type == "LINES"):
+            frame = boxes_helper.show_boxes_lines(d, frame)
+        else:
+            frame = boxes_helper.show_boxes_words(d, frame)
 
         return frame
 
     def compute_best_preprocess(self, frame):
 
         img = self.cv2_helper.binarization_adaptative_threshold(frame)  # Binarization
+        img = self.cv2_helper.remove_noise(img)
+        img = self.cv2_helper.erode(img)
+
         # img, angle = self.cv2_helper.deskew(img)
         d = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
 
