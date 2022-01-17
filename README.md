@@ -22,9 +22,13 @@ pip install opencv-python
 
 See https://tesseract-ocr.github.io/tessdoc/Installation.html
 
-### Pytesseract (Python wrapper for Tesseract)
+### Python-Tesseract
+
+Python-tesseract is a python wrapper for Google's Tesseract-OCR.  
+See https://pypi.org/project/pytesseract/.
+
 ```
-pip install tesseract
+pip install pytesseract
 ```
 
 ## Execution
